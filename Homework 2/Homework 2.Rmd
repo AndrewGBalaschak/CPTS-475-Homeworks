@@ -1,0 +1,122 @@
+---
+title: "CPTS 475 Homework 2"
+author: "Andrew Balaschak"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 1
+## 1.a. Read the winequality-red.csv file into a dataframe named redwine.
+```{r}
+redwine <- read.csv("winequality-red.csv")
+```
+
+## 1.b. Calculate the mean quality and mean alcohol for the dataset.
+```{r}
+print(paste("Mean quality: ", round(mean(redwine$quality), 2)))
+print(paste("Median alcohol: ", round(median(redwine$alcohol), 2)))
+```
+## 1.c. Produce a scatterplot that shows the relationship between wine density and residual sugar.
+```{r}
+plot(redwine$residual_sugar, redwine$density, xlab = "Residual Sugar", ylab = "Density", main = "Residual Sugar vs Density")
+```
+
+Based on this plot, I don't see the residual sugar having any strong effect on the density, as there are wines with a broad range of densities for a similar amount of residual sugar.
+
+## 1.d. Bin the alcohol variable into two categories, medium and high, based on whether or not the alcohol level exceeds 11. From there, calculate the sulphates to chrlorides ratio for each wine, and create a box plot that shows the difference between the ratio for medium and high alcohol wines.
+Binning the wines based on alcohol content, and adding the column to the dataframe.
+```{r}
+ALevel <- cut(redwine$alcohol, labels = c("Medium", "High"), breaks = c(0, 11, 100), include.lowest = TRUE)
+redwine = cbind(redwine, ALevel)
+```
+
+Calculating the sulphates to chlorides ratio and adding the column to the dataframe.
+```{r}
+sulphates_chlorides_ratio = redwine$sulphates/redwine$chlorides
+redwine = cbind(redwine, sulphates_chlorides_ratio)
+```
+
+Plotting the Sulphates to Chlorides Ratio by Alcohol Level in a side-by-side boxplot.
+```{r}
+boxplot(redwine$sulphates_chlorides_ratio ~ redwine$ALevel, xlab = "Alcohol Level", ylab = "Sulphates to Chrlorides Ratio", main = "Sulphates to Chlorides Ratio by Alcohol Level", varwidth = TRUE, notch = TRUE)
+```
+
+```{r}
+table(redwine$ALevel)
+```
+
+The table shows that there are 408 samples in the High Alcohol category.
+
+## 1.e. Produce a histogram showing the fixed acidity numbers  for both High and Medium Alcohol Level wine samples.
+```{r}
+Medium_Wines <- subset(redwine, subset = ALevel == "Medium")
+hist(Medium_Wines$fixed_acidity, xlab = "Fixed Acidity", main = "Fixed Acidity in Medium Alcohol Wines")
+
+
+High_Wines <- subset(redwine, subset = ALevel == "High")
+hist(High_Wines$fixed_acidity, xlab = "Fixed Acidity", main = "Fixed Acidity in High Alcohol Wines")
+```
+
+## 1.f. Produce two new plots of any type and provide a brief summary of your hypothesis and what you discover.
+```{r}
+round(cor(subset(redwine, select = -c(ALevel))), 2)
+plot(redwine$volatile_acidity, redwine$quality, xlab = "Volatile Acidity", ylab = "Quality", main = "Volatile Acidity vs Quality")
+plot(redwine$alcohol, redwine$quality, xlab = "Alcohol", ylab = "Quality", main = "Alcohol vs Quality")
+```
+
+Using the correlation matrix as a jumping-off point, we can see from the plots that as Volatile Acidity increases, Quality decreases. Additionally, as the Alcohol increases, so does Quality.
+
+# 2.
+Here I read in the forestfires.csv file, converting the DC column to numeric since it was not for some reason.
+
+```{r}
+forestfires <- read.csv("forestfires.csv")
+suppressWarnings(forestfires$DC <- as.numeric(forestfires$DC))
+```
+
+## 2.a. Specify which of the predictors are quantitative and which are qualitative
+Month and Day are discrete, categorical variables and this qualitative. X, Y, FFMC, DMC, DC, ISI, Temp, RH, Wind, Rain, and Area are all continuous and quantitative.
+
+## 2.b. What is the range, mean and standard deviation of each quantitative predictor? Which month has the highest number of fires?
+
+```{r}
+quantitative_subset = subset(forestfires, select = -c(X.1, X.2, month, day))
+
+suppressWarnings(round(sapply(quantitative_subset, function(x) c("Range" = (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)), "Mean" = mean(x, na.rm = TRUE), "Standard Deviation" = sd(x, na.rm = TRUE)))), 2)
+
+table(forestfires$month)
+```
+From our table, August has the highest number of fires, with September as a close second.
+
+## 2.c Produce boxplots of relative humidity (RH) by month. Your figure will have a boxplot for every month. Which month has the highest median RH value?
+
+```{r}
+boxplot(forestfires$RH ~ forestfires$month, xlab = "Month", ylab = "Relative Humidity", main = "Relative Humidity By Month", varwidth = TRUE)
+```
+
+The month with the highest median Relative Humidity during a forest fire is January.
+
+## 2.d. Produce a bar plot to show the count of forest fires in each month for which wind is greater than 4.9. During which months are high wind forest fires most common? (Hint: filter data by wind, group data by month and calculate count.)
+
+```{r}
+barplot(table(forestfires[forestfires$wind > 4.9, ]$month))
+```
+
+High wind forest fires are most common in August.
+
+## 2.e. Using the full data set, investigate the predictors graphically, using scatterplots, correlation scores or other tools of your choice. Create a correlation matrix for the relevant variables.
+```{r}
+correlation_subset = subset(forestfires, select = c(FFMC, DMC, DC, ISI, temp, RH, wind, rain, area))
+round(cor(correlation_subset, method = "pearson", use="complete.obs"), 2)
+
+plot(forestfires$FFMC, forestfires$ISI, xlab = "Initial Spread Index", ylab = "Fine Fuel Moisture Code", main = "Initial Spread Index vs Fine Fuel Moisture Code")
+
+plot(forestfires$temp, forestfires$DC, xlab = "Temperature", ylab = "Drought Code", main = "Temperature vs Drought Code")
+```
+
+From the correlation matrix, we can see that the Fine Fuel Moisture Code is correlated with the Initial Spread Index, Duff Moisture Code is correlated with Drought Code, and Temperature is negatively correlated with relative humidity. 
+
+
+## 2.f. Suppose that we wish to predict the Initial spread index (ISI) based on the other variables. Which, if any, of the other variables might be useful in predicting ISI? Justify your answer based on the prior correlations.
+The variable most directly correlated with the Initial Spread Index is the Fine Fuel Moisture Code, followed by the Temperature as shown by the correlation matrix above.
+Additionally, this [resource from the Canadian Government](https://www.nwcg.gov/publications/pms437/cffdrs/fire-weather-index-system) shows that the Initial Spread Index is calculated based on Temperature, Relative Humidity, Wind, Rain, the Fine Fuel Moisture Code, as well as the previous day's Fine Fuel Moisture Code.
