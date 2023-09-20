@@ -1,0 +1,131 @@
+---
+title: "CPTS 475 Homework 3"
+author: "Andrew Balaschak"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 1.
+Here is a description of the variables:
+
+```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+tabl <- "
+| Variable | Description |
+| :------- | :---------- |
+| PLAYER   | Name of the player |
+| TEAM     | Name of the team |
+| AGE      | Age of the player |
+| GP       | Games Played |
+| W        | Wins |
+| L        | Losses |
+| MIN      | Minutes Played |
+| PTS      | Points |
+| FGM      | Field Goals Made |
+| FGA      | Field Goals Attempted |
+| X3PM     | 3 Point Field Goals Made |
+| X3PA     | 3 Point Field Goals Attempted |
+| FTM      | Free Throws Made |
+| FTA      | Free Throws Attempted |
+| OREB     | Offensive Rebounds |
+| DREB     | Defensive Rebounds |
+| REB      | Rebounds |
+| AST      | Assists |
+| TOV      | Turnovers |
+| STL      | Steals |
+| BLK      | Blocks |
+| PF       | Personal Fouls |
+| FP       | Fantasy points |
+| DD2      | Double Doubles |
+| TD3      | Triple Doubles |
+"
+cat(tabl)
+```
+
+```{r}
+library(dplyr)
+nba_data <- read.csv("NBA_Stats_22_23.csv")
+head(nba_data)
+```
+
+
+## 1.a. Count the number of players with Free Throws Made greater than 60 and Assists greater than 80
+```{r}
+nba_data %>% filter(FGM > 60, AST > 80)
+```
+
+## 1.b. Print the PLAYER, TEAM, W, L, FGM, TOV and PTS of the players with the 10 highest points, in descending order of points. Which player has the second highest points?
+```{r}
+nba_data %>% arrange(desc(PTS)) %>% select(PLAYER, TEAM, W, L, FGM, TOV, PTS) %>% slice(1:10)
+```
+Joel Embiid has the second highest point total at 2183
+
+## 1.c. Add two new columns to the dataframe: FGP (in percentage) is the ratio of FGM to FGA, FTP (in percentage) is the ratio of FTM to FTA. What is the FGP and FTP for Joe Harris?
+```{r}
+nba_data <- nba_data %>% mutate(FGP = round((FGM / FGA) * 100, 2))
+nba_data <- nba_data %>% mutate(FTP = round((FTM / FTA) * 100, 2))
+print(nba_data)
+filter(nba_data, PLAYER == "Joe Harris")
+```
+Joe Harris's FGP is 45.68%, and his FTP is 64.29%
+
+## 1.d. Display the average, min and max PF for each team, in descending order of the team average. You can exclude NAs for this calculation. Which team has the max PF?
+```{r}
+nba_data %>% group_by(TEAM) %>% summarise(avg_PF = mean(PF), min_PF = min(PF), max_PF = max(PF)) %>% arrange(desc(avg_PF))
+```
+NYK's team has the highest average PF, at 114.94 points.
+
+## 1.e. In question 1c, you added a new column called FTP. Impute the missing (or NaN) FTP values as the FGP (also added in 1c) multiplied by the average FTP for that team. Make a second copy of your dataframe, but this time impute missing (or NaN) FTP values with just the average FTP for that team. What assumptions do these data filling methods make? Which is the best way to impute the data, or do you see a better way, and why? You may impute or remove other variables as you find appropriate. Briefly explain your decisions.
+```{r}
+nba_data %>% group_by(TEAM) %>% mutate(FTP = ifelse(is.na(FTP), FGP / 100 * mean(FTP, na.rm = TRUE), FTP))
+nba_data %>% group_by(TEAM) %>% mutate(FTP = ifelse(is.na(FTP), mean(FTP, na.rm = TRUE), FTP))
+```
+The first method, FGP * mean FTP, assumes that there is a relationship between FGP and FTP and they are positively correlated with each other. This could potentially overestimate players with a high FGP and underestimate players with a low FGP.
+The second method, mean FTP, assumes that there is no such relationship and that the team average is a good approximation. This ignores the potential variability of FTP within each team and the fact that the average can be skewed by outliers.
+
+# 2. For this question, you will first need to read section 12.6 in the R for Data Science book (http://r4ds.had.co.nz/tidy-data.html#case-study). Grab the dataset “who” from the tidyr package (tidyr::who), and tidy it as shown in the case study before answering the following questions.
+```{r}
+library(tidyr)
+who <- tidyr::who
+who <- who %>%
+  pivot_longer(
+    cols = new_sp_m014:newrel_f65, 
+    names_to = "key", 
+    values_to = "cases", 
+    values_drop_na = TRUE
+  ) %>% 
+  mutate(
+    key = stringr::str_replace(key, "newrel", "new_rel")
+  ) %>%
+  separate(key, c("new", "var", "sexage")) %>% 
+  select(-new, -iso2, -iso3) %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+
+print(who)
+```
+
+## 2.a. Explain why this line "mutate(key = stringr::str_replace(key, "newrel", "new_rel"))" is necessary to properly tidy the data. What happens if you skip this line?
+That line is necessary to tidy the data because it fixes the formatting to be consistent so that there is always an underscore between the variable for new and old cases and the type of TB. If skipped, then the data is parsed incorrectly, with "var" being populated with the sex and age values, and "sex" and "age" both being unpopulated.
+
+## 2.b. How many entries are removed from the dataset when you set values_drop_na to true in the pivot_longer command (in this dataset)?
+When we exclude the line to drop the incomplete rows, we end up with 405,440 rows, when those rows are dropped we end up with 76,046 rows. 
+
+## 2.c. Explain the difference between an explicit and implicit missing value, in general. Can you find any implicit missing values in this dataset? If so, where?
+Explicit missing values are the absence of a value that is instead filled by something like N/A or NaN. An implicit missing value, on the other hand, is the absence of something that is inferred by analysis, such as a missing year or range in values. There are some implicit missing variables in this dataset, for example Afghanistan year 2013 only has two rows, for children ages 0-14. Clearly there should be rows for people of other ages, but there are not.
+
+## 2.d. Looking at the features (country, year, var, sex, age, cases) in the tidied data, are they all appropriately typed? Are there any features you think would be better suited as a different type? Why or why not?
+The year feature should probably be an integer instead of a double and cases should also be an integer instead of a double. This is because we only need to use integers for these discrete measurements, as a decimal value would not be meaningful.
+
+## 2.e. Produce a barplot to show the count of TB cases by gender for all countries. You can create side by side bars for the two genders.
+```{r}
+library(ggplot2)
+ggplot(who, aes(fill=sex, y=cases, x=age)) + geom_bar(position="dodge", stat="identity") + ggtitle("Case Study of TB by Gender (All Countries)")
+```
+
+## 2.f. The table consists of 6 columns. The first shows the Group code, the second shows the year and the last four columns provide the revenue for each quarter of the year. Re-structure this table and show the code you would write to tidy the dataset (using gather()/pivot_longer() and separate()/pivot_wider()) such that the columns are organized as: Group, Year, Interval_Type, Interval_ID and Revenue. How many rows does the new dataset have?
+```{r}
+revqtr <- read.csv("RevQtr.csv")
+print(revqtr)
+revqtr <- gather(revqtr, Interval, Revenue, Qtr.1:Qtr.4)
+separate(revqtr, Interval, c("Interval Type", "Interval ID"), convert = TRUE)
+```
+The new dataset has 48 rows.
