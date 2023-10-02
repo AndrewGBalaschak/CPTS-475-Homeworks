@@ -52,6 +52,7 @@ head(nba_data)
 ```{r}
 nba_data %>% filter(FGM > 60, AST > 80)
 ```
+There are 243 players with Free Throws Made greater than 60 and Assists greater than 80.
 
 ## 1.b. Print the PLAYER, TEAM, W, L, FGM, TOV and PTS of the players with the 10 highest points, in descending order of points. Which player has the second highest points?
 ```{r}
@@ -107,7 +108,7 @@ print(who)
 That line is necessary to tidy the data because it fixes the formatting to be consistent so that there is always an underscore between the variable for new and old cases and the type of TB. If skipped, then the data is parsed incorrectly, with "var" being populated with the sex and age values, and "sex" and "age" both being unpopulated.
 
 ## 2.b. How many entries are removed from the dataset when you set values_drop_na to true in the pivot_longer command (in this dataset)?
-When we exclude the line to drop the incomplete rows, we end up with 405,440 rows, when those rows are dropped we end up with 76,046 rows. 
+When we exclude the line to drop the incomplete rows, we end up with 405,440 rows, when those rows are dropped we end up with 76,046 rows meaning 329,394 entries are removed. 
 
 ## 2.c. Explain the difference between an explicit and implicit missing value, in general. Can you find any implicit missing values in this dataset? If so, where?
 Explicit missing values are the absence of a value that is instead filled by something like N/A or NaN. An implicit missing value, on the other hand, is the absence of something that is inferred by analysis, such as a missing year or range in values. There are some implicit missing variables in this dataset, for example Afghanistan year 2013 only has two rows, for children ages 0-14. Clearly there should be rows for people of other ages, but there are not.
