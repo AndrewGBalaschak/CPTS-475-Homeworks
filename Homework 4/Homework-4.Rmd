@@ -1,0 +1,116 @@
+---
+title: "CPTS 475 Homework 4"
+author: "Andrew Balaschak"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 1
+```{r, echo = FALSE}
+library(SnowballC)
+library(dplyr)
+library(ggplot2)
+library(nycflights13)
+library(readtext)
+library(tidyr)
+library(tm)
+library(usmap)
+library(wordcloud)
+```
+## 1.a. Filter the dataset (using a left join) to display the tail number, year, month, day, hour, origin, and humidity for all flights heading to Tampa International Airport (TPA) after 12pm on November 1, 2013. How many flights happened during the given time frame that day?
+```{r}
+# Filtering the dataset to only flights to Tampa on November 1, 2013 after 12 pm
+flights_tpa <- nycflights13::flights %>% filter(dest == "TPA" & year == 2013 & month == 11 & day == 1 & hour >= 12)
+
+# Left join with weather so that we can get the humidity at the origin airport
+flights_tpa <- flights_tpa %>% left_join(nycflights13::weather, by = c("year", "month", "day", "hour", "origin"))
+
+# Selecting the requested columns
+flights_tpa <- flights_tpa %>% select(tailnum, year, month, day, hour, origin, humid)
+print(flights_tpa)
+```
+There were 10 flights with the destination of Tampa International Airport after 12pm on November 1, 2013
+
+## 1.b. What is the difference between the following two joins?
+```{r}
+anti_join(flights, airports, by = c("dest" = "faa"))
+anti_join(airports, flights, by = c("faa" = "dest"))
+```
+The first join returns rows from flights that don't have a matching destination in the airports table.
+The second join returns rows from airports that don't have any flights going to them.
+
+## 1.c. Select the origin and destination airports and their latitude and longitude for all flights in the dataset (using one or more inner joins). How many flights are there in your result?
+```{r}
+# Join the flights table with the airports table matching origin airport to populate information on origin airport
+origin_destination <- flights %>% inner_join(airports, by = c("origin" = "faa")) %>% rename(origin_name = name, origin_lat = lat, origin_lon = lon)
+
+# Join the origin_destination table with the airports table matching destination airport to populate information on destination airport
+origin_destination <- origin_destination %>% inner_join(airports, by = c("dest" = "faa")) %>% rename(dest_name = name, dest_lat = lat, dest_lon = lon)
+
+# Select requested columns and print
+print(origin_destination %>% select(origin, origin_name, origin_lat, origin_lon, dest, dest_name, dest_lat, dest_lon))
+```
+There are 329,174 flights in the dataset. Though this is using an inner join, so if a flight does not have a matching airport in the airports table for both the origin and destination airport, it will be dropped. That is why there are fewer flights in this table than in the flights table.
+
+## 1.d. Produce a map that sizes each destination airport by the number of incoming flights. You may use a continuous scale for the size.
+```{r}
+# Join the flights table with the airports table
+flights_airports <- flights %>% left_join(airports, c("dest" = "faa"))
+
+# Count number of flights going to each destination airport
+suppressMessages(flights_count <- flights_airports %>% group_by(dest, lat, lon) %>% summarize(flights = n()))
+
+# Plot the map with a continuous scale for the size of the points
+flights_map <- flights_count %>%
+  ggplot(aes(lon, lat, size = flights)) +
+  borders("world", xlim = c(-160, -80), ylim = c(20, 70)) +
+  geom_point(color = "lightblue", alpha = 0.6) +
+  coord_quickmap() +
+  scale_size_continuous(range = c(1, 4)) +
+  labs(title = "Number of Incoming Flights",
+       x = "Longitude",
+       y = "Latitude",
+       size = "Flights")
+
+# Print the result
+flights_map
+```
+
+# 2.Create visualizations of the US map coloring the states or sizing the point/marker for the states according to the GDP for each state (one map per year). Compare the GDP of different states for all the years using the maps you generated (we recommend that you maintain a constant scale for showing the GDP in all the four maps.
+```{r}
+us_states_gdp <- read.csv("us_states_gdp.csv")
+
+for (i in seq_along(us_states_gdp)[-1]) {
+  # Get the name of the current column
+  column_name <- colnames(us_states_gdp[i])
+  # Get the year from that column name
+  year <- substr(column_name, 5, 9)
+  
+  # , min = 0, max = 3000000
+  
+  # Plot the map with a viridis color scale for the GDP
+  us_map_plot <- plot_usmap(data = us_states_gdp, values = column_name, color = "white") +
+    scale_fill_continuous(type = "viridis", name = "GDP (Billions)", limits = c(0, 3000000), label = scales::comma) +
+    theme(legend.position = "right") +
+    labs(title = paste("GDP by State in", year))
+  
+  # Print the plot
+  print(us_map_plot)
+}
+```
+
+# 3. Create a word cloud for an interesting (relatively short, say a couple of pages) document of your own choice. Examples of suitable documents include: summary of a recent project you are working or have worked on; your own recent Statement of Purpose or Research Statement or some other similar document.
+```{r}
+wordbase <- readtext("R-intro.pdf")
+corp <- Corpus(VectorSource(wordbase))
+corp <- tm_map(corp, PlainTextDocument)
+corp <- tm_map(corp, removePunctuation)
+corp <- tm_map(corp, removeNumbers)
+corp <- tm_map(corp, tolower)
+corp <- tm_map(corp, removeWords, stopwords(kind = "en"))
+corp <- tm_map(corp, removeWords, c("can", "will", "way", "chapter"))
+color <- brewer.pal(8,"Reds")
+wordcloud(corp, max.words = 80, random.order = FALSE, colors = color, scale = c(4,.1))
+```
+
+Wordcloud generated from the document "An Introduction to R" by W. N. Venables, D. M. Smith and the R Core Team following the tutorial here: <https://www.ryananddebi.com/2017/07/21/r-linux-creating-a-wordcloud-from-pdf/>
