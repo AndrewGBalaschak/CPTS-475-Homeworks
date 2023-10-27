@@ -1,0 +1,205 @@
+---
+title: "CPTS 475 Homework 5"
+author: "Andrew Balaschak"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 1. (15 points) This question involves the use of multiple linear regression on the cars_graphics data set available on Canvas in the Datasets for Assignments Module. Ensure that values are represented in the appropriate types.
+```{r}
+library(dplyr)
+library(ggplot2)
+cars_graphics = read.csv("cars_graphics.csv")
+# print(cars_graphics)
+```
+
+## 1.a. (5 points) Perform a multiple linear regression with MPG as the response and all other variables except Car as the predictors. Show a printout of the result (including coefficient, error, and t values for each predictor). Comment on the output:
+```{r}
+multi_lm_cars <- lm(MPG ~ Cylinders + Displacement + Horsepower + Weight + Acceleration + Model + Origin, data = cars_graphics)
+summary(multi_lm_cars)
+```
+
+### 1.a.i. Which predictors appear to have a statistically significant relationship to the response, and how do you determine this?
+It appears that the most important factors are the weight of the vehicle as well as its model. This makes sense because the weight would mean the vehicle requires more energy to move, and different models likely have vastly different performance characteristics, meaning that it would be easy to use that as a predictor of MPG.
+The least important factors are the engine characteristics cylinders and horsepower. This means that an engine's efficency is not significantly tied to its cylinder count or horsepower rating.
+I determined all of this by observing the Pr(>|t|) column, which gives the probability that the factor is due to random chance. Factors with a lower Pr(>|t|) are less likely to be caused by random chance and thus a higher probability of being significant.
+
+### 1.a.ii. What does the coefficient for the Weight variable suggest, in simple terms?
+The coefficient for weight suggests that, as the vehicle's weight increases, the MPG decreases. Specifically, for each additional unit of weight, the vehicle gets 0.006942 less MPG.
+
+# 1.b. (5 points) Produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?
+```{r}
+plot(multi_lm_cars)
+```
+
+Overall, the residuals are mostly clustered around 0, which leads me to believe that our model does not have any sort of glaring issue with its predictions in general. Howeever, it does look like there are some points that are unusually large outliers, with some residuals in excess of 20 MPG less than the prediction. There are also a couple of points with leverages higher than the majority of the dataset, but they do not fall outside of Cook's distance, so they are not considered overly influential on the coefficients.
+
+# a.c. (5 points) Fit linear regression models (at least 3) with interaction effects with Horsepower as the response. Do any interactions appear to be statistically significant?
+```{r}
+lm_disp_accel_hp_cars = lm(Horsepower ~ Displacement * Acceleration, data = cars_graphics)
+summary(lm_disp_accel_hp_cars)
+```
+
+This interaction effect between displacement and acceleration does appear to have a statistically significant effect on horsepower, with a p-value of 0.0002.
+
+```{r}
+lm_weight_cyl_hp_cars = lm(Horsepower ~ Weight * Cylinders, data = cars_graphics)
+summary(lm_weight_cyl_hp_cars)
+```
+
+This interaction effect between weight and cylinders also appears to have a statistically significant effect on horsepower, with a p-value of 4.25*10^-8
+
+```{r}
+lm_disp_weight_hp_cars = lm(Horsepower ~ Displacement * Weight, data = cars_graphics)
+summary(lm_disp_weight_hp_cars)
+```
+
+This interaction effect between displacement and weight also appears to have a statistically significant effect on horsepower, with a p-value of 1.62*10^-6
+
+# 2. (30 points) This problem involves the Boston data set, which can be attached from library MASS in R and is also made available in the Datasets for Assignments module on Canvas. We will now try to predict per capita crime rate (crim) using the other variables in this data set. In other words, per capita crime rate is the response, and the other variables are the predictors.
+```{r}
+library(MASS)
+```
+
+## 2.a. (6 points) For each predictor, fit a simple linear regression model to predict the response. Include the code, but not the output for all models in your solution.
+Here is the code to fit a simple linear regression model for each predictor in the dataset. If you want to print the output of all models, you can just uncomment the lapply() call. Otherwise, individual models can be queried from the list models[[]].
+
+```{r}
+predictors <- names(Boston)[-1]
+single_lm_crime <- list()
+for (i in predictors) {
+  formula <- as.formula(paste("crim ~", i))
+  single_lm_crime[[i]] <- lm(formula, data = Boston)
+}
+# lapply(single_lm_crime, summary)
+```
+
+## 2.b. (6 points) In which of the models is there a statistically significant association between the predictor and the response? Considering the meaning of each variable, discuss the relationship between crim and each of the predictors nox, chas, rm, dis and medv. How do these relationships differ?
+There appears to be a statistically significant linear association between the predictor and the response in all predictors except for chas. That is to say, zn, indus, nox, rm, age, dis, rad, tax, ptratio, black, lstat, and medv all had statistically significant associations to crime.
+
+**Factors in Crime**
+
++ **nox** - nitrogen oxides concentration (parts per 10 million).
+  - There is a positive relationship between nox and crime, meaning that higher nitrogen oxides concentration is correlated with a higher crime rate. Perhaps areas with higher nox have a poorer quality of life and lower income, which may lead to more crime.
+
++ **chas** - Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).\
+  - There isn't a statistically significant relationship here, so that means whether or not a tract bounds the river is not highly correlated with the crime rate. The river probably does not have a strong impact on the socio-economic factors that lead to crime.
+
++ **dis** - weighted mean of distances to five Boston employment centres.
+  - There is a negative relationship between dis and crime, meaning that greater distances are correlated with lower crime rates. Perhaps these spaces have a higher quality of life, potentially due to less dense population which may also correlate with less polution.
+
++ **medv** - median value of owner-occupied homes in $1000s.
+  - There is a negative relationship between medv and crime, meaning that the higher median value of owner-occupied homes, the lower the crime rate. This could be explained by the fact that more expensive homes may reflect higher personal or family income, higher education, higher social status, and more overall security, which could deter crime.
+
+## 2.c. (6 points) Fit a multiple regression model to predict the response using all the predictors. Describe your results. For which predictors can we reject the null hypothesis H 0 : βj = 0?
+```{r}
+multi_lm_crime <- lm(crim ~ zn + indus + chas + nox + rm + age + dis + rad + tax + ptratio + black + lstat + medv, data = Boston)
+summary(multi_lm_crime)
+```
+
+The predictors for which we can reject the null hypothesis are dis, rad, black, and medv since their p-value is <0.05
+
+## 2.d. (6 points) How do your results from (a) compare to your results from (c)? Create a plot displaying the univariate regression coefficients from (a) on the x-axis, and the multiple regression coefficients from (c) on the y-axis. That is, each predictor is displayed as a single point in the plot. Its coefficient in a simple linear regression model is shown on the x-axis, and its coefficient estimate in the multiple linear regression model is shown on the y-axis. What does this plot tell you about the various predictors?
+The results that I got in (c) suggest that fewer variables may be significant than the results I got from (a).
+```{r}
+library(tidyverse)
+coefficients <- read.csv("coefficients.csv")
+
+ggplot(coefficients, aes(x=x, y=y, color=predictor)) + geom_point() + labs(title = "Single vs Multiple Linear Regression Coefficients", x = "Single Linear Regression Coefficient", y = "Multiple Linear Regression Coefficient")
+```
+
+Most data points did exhibit some level of change when comparing the single vs multiple linear regression. This could be due to confounding effects with other predictors that were not present when computing the single linear regression coefficients.
+
+## 2.e. (6 points) Is there evidence of non-linear association between any of the predictors and the response? To answer this question, for each predictor X, fit a model of the form: Y = β0 + β1 X + β2 X 2 + β3 X 3 + ε. Hint: use the poly() function in R. Again, include the code, but not the output for each model in your solution, and instead describe any non-linear trends you uncover.
+```{r}
+single_poly_crime <- list()
+for (i in predictors) {
+  formula <- as.formula(paste("crim ~ poly(", i, ", degree = 3, raw = TRUE)"))
+  single_poly_crime[[i]] <- lm(formula, data = Boston)
+}
+# lapply(single_poly_crime, summary)
+```
+
+Below is a list of predictors and what significant relationships they have to crime rate. Some have no significant relationship, while others have a linear, quadratic, and/or cubic relationship.
+
++ **zn**
+	- cubic
++ **indus**
+	- cubic
+	- quadratic
+	- linear
++ **chas**
+	- N/A
++ **nox**
+	- cubic
+	- quadratic
+	- linear
++ **rm**
+	- N/A
++ **age**
+	- quadratic
+	- linear
++ **dis**
+	- cubic
+	- quadratic
+	- linear
++ **rad**
+	- N/A
++ **tax**
+	- N/A
++ **ptratio**
+	- cubic
+	- quadratic
+	- linear
++ **black**
+	- N/A
++ **lstat**
+	- N/A
++ **medv**
+	- cubic
+	- quadratic
+	- linear
+
+# 3. (15 points) Suppose we collect data for a group of students in a statistics class with variables: X1 = hours studied, X2 = undergrad GPA, X3 = PSQI score (a sleep quality index), and Y = receive an A. We fit a logistic regression and produce estimated coefficient, β0 = −7, β1 = 0.1, β2 = 1, β3 = -.04.
+## 3.a. (5 points) Estimate the probability that a student who studies for 35 h, has a PSQI score of 11 and has an undergrad GPA of 3.0 gets an A in the class. Show your work.
+$$\frac{1}{1+e^{-(-7 + 0.1 * x_1 + 1 * x_2 + -0.04 * x_3)}} = Y$$
+
+$$\frac{1}{1+e^{-(-7 + 0.1 * 35 + 1 * 3.0 + -0.04 * 11)}} = 0.2809$$
+
+## 3.b. (5 points) How many hours would the student in part (a) need to study to have a 60 % chance of getting an A in the class? Show your work.
+$$\frac{1}{1+e^{-(-7 + 0.1 * x_1 + 1 * 3.0 + -0.04 * 11)}} = 0.6$$
+$$\frac{1}{1+e^{-(-7 + 0.1 * 48.4547 + 1 * 3.0 + -0.04 * 11)}} = 0.6$$
+The student would need to spend 48.4547 studying to have a 60% chance of getting an A in the class according to the logistic regression model.
+
+## 3.c. (5 points) How many hours would a student with a 3.0 GPA and a PSQI score of 4 need to study to have a 60 % chance of getting an A in the class? Show your work.
+$$\frac{1}{1+e^{-(-7 + 0.1 * x_1 + 1 * 3.0 + -0.04 * 4)}} = 0.6$$
+$$\frac{1}{1+e^{-(-7 + 0.1 * 45.6547 + 1 * 3.0 + -0.04 * 4)}} = 0.6$$
+The student with a PSQI score of 4 would need to spend 45.6547 hours studying to have a 60% chance of getting an A in the class according to the logistic regression model.
+
+# 4. (40 points) For this question, you will use a naïve Bayes model to classify ecommerce product descriptions by their category. The product descriptions have been pre-processed and cleared of any major confounding factors such as HTML tags, but it is up to you to check for other problems and to prepare them for classification. The ecommerceData dataset can be found on the Modules page under Datasets for Assignments. The dataset consists of the ecommerce product descriptions (text) and the category (label) it belongs to. There are a total of 4 categories. Prepare the dataset for classification as suggested below.
+
+## 4.a. (20 points) Tokenization
+```{r}
+library(SnowballC)
+library(quanteda)
+require(readtext)
+
+ecommerce <- readtext("ecommerceData.csv")
+
+# construct corpus
+corpus <- corpus(ecommerce$text.1)
+
+# construct document feature matrix
+dfmat <- corpus |> tokens(remove_punct = TRUE) |> tokens_remove(stopwords("en")) |> dfm()
+
+# sort dfm by frequence
+dfm_sort(dfmat)
+```
+
+```{r}
+summary(ecommerce)
+print(corpus)
+print(dfmat)
+```
+
+## 4.b. (20 points) Classification
